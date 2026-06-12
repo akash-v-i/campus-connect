@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useChatbot } from '@/contexts/ChatbotContext';
-import { sendChatMessage } from '@/lib/api/openai-chat';
+import { sendChatMessage } from '@/lib/api/enhanced-chat';
 import { toast } from 'sonner';
 
 interface ChatMessage {

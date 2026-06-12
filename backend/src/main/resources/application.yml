@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:campus_connect}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:2407}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate # We use Flyway for migrations
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${CLERK_ISSUER_URL}
+          jwk-set-uri: ${CLERK_JWKS_URL}
+
+server:
+  port: ${APP_PORT:8080}
+
+clerk:
+  webhook-secret: ${CLERK_WEBHOOK_SECRET:dummy_secret}
+  allowed-origins: ${CLERK_ALLOWED_ORIGINS:http://localhost:5173}
+
+storage:
+  mode: ${FILE_STORAGE_MODE:local}
+  root: ${FILE_STORAGE_ROOT:./uploads}

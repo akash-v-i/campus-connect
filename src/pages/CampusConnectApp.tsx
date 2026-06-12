@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import { menuApi, ordersApi, MenuItem, Order, CreateOrderData } from "@/lib/api";
+import { initializeSampleData } from "@/lib/sample-data";
 
 // Types
 export type UserRole = "student" | "canteen";
@@ -26,27 +28,10 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
-// API Helpers
-const API_BASE = "http://localhost:3000/api";
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    ...init,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  if (res.status === 204) return undefined as unknown as T;
-  return (await res.json()) as T;
-}
+// Initialize sample data on mount
+initializeSampleData();
 
 // Domain Types
-type MenuItem = { id: string; name: string; price: number; available: boolean };
-type Order = { id: string; itemId: string; itemName: string; qty: number; status: "pending" | "picked"; createdAt: string };
-
 type MenuCreate = { name: string; price: number; available: boolean };
 
 // Student View
@@ -59,12 +44,16 @@ function StudentView() {
   useEffect(() => {
     // load menu & history
     void (async () => {
-      const [m, h] = await Promise.all([
-        api<MenuItem[]>("/canteen/menu"),
-        api<Order[]>("/canteen/orders/me"),
-      ]);
-      setMenu(m);
-      setHistory(h);
+      try {
+        const [m, h] = await Promise.all([
+          menuApi.getAll(),
+          ordersApi.getAll(),
+        ]);
+        setMenu(m);
+        setHistory(h);
+      } catch (error) {
+        console.error("Failed to load menu or history:", error);
+      }
     })();
   }, []);
 
@@ -79,14 +68,18 @@ function StudentView() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const order = await api<Order>("/canteen/orders", {
-        method: "POST",
-        body: JSON.stringify({ itemId: form.itemId, qty: form.qty }),
-      });
+      const orderData: CreateOrderData = {
+        itemId: form.itemId,
+        qty: form.qty,
+        studentId: "student_" + Math.random().toString(36).substr(2, 9),
+        studentName: "Student User",
+      };
+      const order = await ordersApi.create(orderData);
       setHistory((h) => [order, ...h]);
+      setForm({ itemId: menu[0]?.id || "", qty: 1 });
     } catch (err) {
       console.error(err);
-      alert("Failed to submit order");
+      alert("Failed to submit order: " + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSubmitting(false);
     }
@@ -198,11 +191,13 @@ function CanteenView() {
     setLoading(true);
     try {
       const [m, q] = await Promise.all([
-        api<MenuItem[]>("/canteen/menu"),
-        api<Order[]>("/canteen/orders/pending"),
+        menuApi.getAll(),
+        ordersApi.getPending(),
       ]);
       setMenu(m);
       setQueue(q);
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
     } finally {
       setLoading(false);
     }
@@ -215,11 +210,12 @@ function CanteenView() {
   }, []);
 
   async function toggleAvailability(item: MenuItem) {
-    const updated = await api<MenuItem>(`/canteen/menu/${item.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ ...item, available: !item.available }),
-    });
-    setMenu((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    try {
+      const updated = await menuApi.update(item.id, { available: !item.available });
+      setMenu((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    } catch (error) {
+      console.error("Failed to toggle availability:", error);
+    }
   }
 
   async function createMenuItem() {
@@ -228,18 +224,30 @@ function CanteenView() {
     const priceStr = prompt("Price?");
     const price = Number(priceStr ?? "0");
     const body: MenuCreate = { name, price, available: true };
-    const created = await api<MenuItem>("/canteen/menu", { method: "POST", body: JSON.stringify(body) });
-    setMenu((prev) => [created, ...prev]);
+    try {
+      const created = await menuApi.create(body);
+      setMenu((prev) => [created, ...prev]);
+    } catch (error) {
+      console.error("Failed to create menu item:", error);
+    }
   }
 
   async function deleteMenuItem(id: string) {
-    await api<void>(`/canteen/menu/${id}`, { method: "DELETE" });
-    setMenu((prev) => prev.filter((m) => m.id !== id));
+    try {
+      await menuApi.delete(id);
+      setMenu((prev) => prev.filter((m) => m.id !== id));
+    } catch (error) {
+      console.error("Failed to delete menu item:", error);
+    }
   }
 
   async function markPicked(id: string) {
-    const picked = await api<Order>(`/canteen/orders/pickup/${id}`, { method: "PUT" });
-    setQueue((prev) => prev.filter((o) => o.id !== id));
+    try {
+      const picked = await ordersApi.markPicked(id);
+      setQueue((prev) => prev.filter((o) => o.id !== id));
+    } catch (error) {
+      console.error("Failed to mark order as picked:", error);
+    }
   }
 
   return (

@@ -2,11 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
-  BookOpen, 
-  UtensilsCrossed, 
-  GraduationCap, 
+  BookOpen,
+  UtensilsCrossed,
+  GraduationCap,
   Building2,
   Sparkles,
   ArrowRight,
@@ -15,10 +15,43 @@ import {
   TrendingUp
 } from 'lucide-react';
 
+import { useQuery } from '@tanstack/react-query';
+import { supabase, TABLES } from '@/lib/supabase';
+
 export default function Home() {
   const { theme } = useTheme();
-  const { isSignedIn } = useUser();
-  
+  const { isSignedIn, user } = useAuth();
+
+  const getDashboardLink = () => {
+    if (!user) return '/sign-in';
+    const roleMap: any = {
+      'Student': '/dashboard',
+      'Professor': '/faculty',
+      'Librarian': '/librarian',
+      'Canteen Staff': '/canteen-incharge',
+      'Admin': '/dashboard'
+    };
+    return roleMap[user.role] || '/dashboard';
+  };
+
+  // Fetch stats
+  const { data: statsData } = useQuery({
+    queryKey: ['campus-stats'],
+    queryFn: async () => {
+      const [students, books, orders] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'Student'),
+        supabase.from(TABLES.ISSUED_BOOKS).select('*', { count: 'exact', head: true }),
+        supabase.from(TABLES.ORDERS).select('*', { count: 'exact', head: true }),
+      ]);
+
+      return {
+        students: students.count || 0,
+        books: books.count || 0,
+        orders: orders.count || 0,
+      };
+    },
+  });
+
   const features = [
     {
       icon: BookOpen,
@@ -45,14 +78,14 @@ export default function Home() {
       color: 'text-green-500'
     },
   ];
-  
+
   const stats = [
-    { icon: Users, value: '10K+', label: 'Active Students' },
-    { icon: BookOpen, value: '50K+', label: 'Books Issued' },
-    { icon: Award, value: '95%', label: 'Satisfaction Rate' },
-    { icon: TrendingUp, value: '24/7', label: 'Available' },
+    { icon: Users, value: statsData ? `${statsData.students}+` : '10K+', label: 'Active Students' },
+    { icon: BookOpen, value: statsData ? `${statsData.books}+` : '50K+', label: 'Books Issued' },
+    { icon: UtensilsCrossed, value: statsData ? `${statsData.orders}+` : '5K+', label: 'Meals Served' },
+    { icon: TrendingUp, value: '24/7', label: 'Availability' },
   ];
-  
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -63,22 +96,22 @@ export default function Home() {
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Your Complete Campus Companion</span>
             </div>
-            
+
             <h1 className="text-5xl lg:text-7xl font-bold mb-6">
               Campus Life,
               <span className={theme === 'cyber' ? 'gradient-cyber bg-clip-text text-transparent' : 'text-primary'}>
                 {' '}Simplified
               </span>
             </h1>
-            
+
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              One unified platform for library, canteen, academics, and campus services. 
+              One unified platform for library, canteen, academics, and campus services.
               Built by students, for students.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               {isSignedIn ? (
-                <Link to="/dashboard">
+                <Link to={getDashboardLink()}>
                   <Button size="lg" className="gap-2 text-lg">
                     Go to Dashboard
                     <Sparkles className="h-5 w-5" />
@@ -101,19 +134,19 @@ export default function Home() {
             </div>
           </div>
         </div>
-        
+
         {/* Decorative Elements */}
         <div className={`absolute top-20 right-10 w-72 h-72 ${theme === 'cyber' ? 'bg-primary/20' : 'bg-primary/10'} rounded-full blur-3xl animate-pulse`}></div>
         <div className={`absolute bottom-20 left-10 w-96 h-96 ${theme === 'cyber' ? 'bg-secondary/20' : 'bg-primary/5'} rounded-full blur-3xl animate-pulse delay-1000`}></div>
       </section>
-      
+
       {/* Features */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">Everything You Need</h2>
           <p className="text-xl text-muted-foreground">All essential campus services in one place</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, idx) => {
             const Icon = feature.icon;
@@ -127,7 +160,7 @@ export default function Home() {
           })}
         </div>
       </section>
-      
+
       {/* Stats */}
       <section className={`${theme === 'cyber' ? 'gradient-cyber-subtle' : 'bg-muted/50'} py-20`}>
         <div className="container mx-auto px-4">
@@ -145,7 +178,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
+
       {/* CTA */}
       <section className="container mx-auto px-4 py-20">
         <Card className={`p-12 text-center ${theme === 'cyber' ? 'gradient-cyber' : 'bg-primary'} text-white`}>
@@ -153,7 +186,7 @@ export default function Home() {
           <p className="text-xl mb-8 opacity-90">
             Join thousands of students already using CampusHub
           </p>
-          <Link to="/dashboard">
+          <Link to={getDashboardLink()}>
             <Button size="lg" variant="secondary" className="gap-2">
               Launch Dashboard
               <ArrowRight className="h-5 w-5" />

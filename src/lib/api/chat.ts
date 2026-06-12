@@ -1,4 +1,7 @@
-// API utility for chat functionality
+// API utility for chat functionality - uses enhanced-chat with mock responses
+// This ensures chat always works without requiring external API keys or backend
+import { sendChatMessage as sendEnhancedChatMessage } from './enhanced-chat';
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -11,27 +14,12 @@ export interface ChatResponse {
   error?: string;
 }
 
+// Wrapper that uses enhanced-chat for reliable responses
 export const sendChatMessage = async (message: string): Promise<ChatResponse> => {
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return {
-      reply: data.reply,
-      success: true,
-    };
+    return await sendEnhancedChatMessage(message);
   } catch (error) {
-    console.error('Chat API error:', error);
+    console.error('Chat error:', error);
     return {
       reply: 'Sorry, I encountered an error. Please try again.',
       success: false,

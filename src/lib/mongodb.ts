@@ -11,7 +11,7 @@ export class MongoDBClient {
 
   constructor() {
     this.uri = MONGODB_URI;
-    
+
     if (!this.uri) {
       console.error("VITE_MONGODB_URI is not defined in the environment variables.");
       throw new Error("MongoDB URI is not configured");
@@ -50,13 +50,14 @@ export const config = {
   mongodb: {
     uri: MONGODB_URI,
   },
-  clerk: {
-    publishableKey: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_c2F2ZWQtbW9sbHktMTQuY2xlcmsuYWNjb3VudHMuZGV2JA",
-  },
   openai: {
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     model: import.meta.env.VITE_OPENAI_MODEL || "gpt-3.5-turbo",
     enabled: !!import.meta.env.VITE_OPENAI_API_KEY,
+  },
+  supabase: {
+    url: import.meta.env.VITE_SUPABASE_URL || 'https://ibjogvitqfvfvgwqarxp.supabase.co',
+    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imliam9ndml0cWZ2ZnZnd3FhcnhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NzM0MTIsImV4cCI6MjA4MjI0OTQxMn0.iYMSL8X31hFSbXZbGbQxBkCrBKObXdkGIiv5t913wSo',
   }
 };
 
@@ -64,11 +65,11 @@ export const config = {
 export const validateEnvironment = (): void => {
   const requiredVars = ['VITE_MONGODB_URI'];
   const missing = requiredVars.filter(varName => !import.meta.env[varName]);
-  
+
   if (missing.length > 0) {
     console.error('Missing required environment variables:', missing);
     throw new Error(`Missing environment variables: ${missing.join(', ')}`);
   }
-  
+
   console.log('✅ All required environment variables are loaded');
 };
